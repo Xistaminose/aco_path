@@ -1,0 +1,45 @@
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribuição / empacotamento
+dist/
+build/
+*.egg-info/
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.env
+.venv
+
+# Configurações de IDE e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Cache específico do projeto
+cache/
+*.pkl
+
+# Outputs gerados
+aco_map_*.png
+
+# Logs
+*.log
+
+# Arquivos temporários do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Diretórios específicos do projeto
+output/
+temp/ 
