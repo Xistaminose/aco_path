@@ -7,6 +7,7 @@ import math
 import numpy as np
 import py5
 import networkx as nx
+import osmnx as ox
 from scipy.spatial import distance
 from collections import deque
 
@@ -38,6 +39,12 @@ show_fps = True
 fps_history = deque(maxlen=60)
 fps_update_interval = 10
 
+# Configurações dos agentes (formigas)
+ANT_COLOR = (240, 240, 50)
+ANT_SIZE = 6
+ANT_SPEED = 120  # unidades de tela por segundo
+NUM_ANTS = 15
+
 # Estado da visualização
 graph = None
 nodes = {}
@@ -61,6 +68,10 @@ street_buffer = None
 streets_pg = None
 streets_dirty = True
 street_shapes = {}
+
+# Lista de formigas e caminho precomputado em coordenadas de tela
+ants = []
+ant_path_screen = []
 
 
 def calculate_view_boundaries(origin, destination, buffer_percentage=BUFFER_PERCENTAGE):
@@ -280,8 +291,73 @@ def calculate_distance_to_circle_edge(x, y):
     dist_to_edge = circle_radius - dist_to_center
     
     normalized_dist = max(0, min(1, dist_to_edge / (circle_radius * 0.3)))
-    
+
     return normalized_dist
+
+
+class Ant:
+    def __init__(self, path):
+        self.segments = []
+        self.lengths = []
+        for i in range(len(path) - 1):
+            x1, y1 = path[i]
+            x2, y2 = path[i + 1]
+            self.segments.append((x1, y1, x2, y2))
+            self.lengths.append(math.hypot(x2 - x1, y2 - y1))
+        self.total_length = sum(self.lengths)
+        self.progress = 0.0
+
+    def update(self, dt):
+        if self.total_length == 0:
+            return
+        self.progress = (self.progress + ANT_SPEED * dt) % self.total_length
+
+    def get_position(self):
+        remaining = self.progress
+        for (x1, y1, x2, y2), seg_len in zip(self.segments, self.lengths):
+            if remaining <= seg_len:
+                t = remaining / seg_len if seg_len else 0
+                x = x1 + (x2 - x1) * t
+                y = y1 + (y2 - y1) * t
+                return x, y
+            remaining -= seg_len
+        return self.segments[-1][2], self.segments[-1][3]
+
+    def draw(self):
+        x, y = self.get_position()
+        py5.no_stroke()
+        py5.fill(*ANT_COLOR)
+        py5.circle(x, y, ANT_SIZE)
+
+
+def compute_shortest_path():
+    if not nodes:
+        return []
+    try:
+        orig_node = ox.distance.nearest_nodes(graph, origin_coords[0], origin_coords[1])
+        dest_node = ox.distance.nearest_nodes(graph, dest_coords[0], dest_coords[1])
+        path_nodes = nx.shortest_path(graph, orig_node, dest_node, weight="length")
+        return [nodes[n] for n in path_nodes]
+    except Exception as e:
+        print(f"Erro ao calcular caminho: {e}")
+        return []
+
+
+def generate_ants(num=NUM_ANTS):
+    global ants, ant_path_screen
+    path = compute_shortest_path()
+    ant_path_screen = [(world_to_screen_x(x), world_to_screen_y(y)) for x, y in path]
+    ants = [Ant(ant_path_screen) for _ in range(num)]
+
+
+def update_ants(dt):
+    for ant in ants:
+        ant.update(dt)
+
+
+def draw_ants():
+    for ant in ants:
+        ant.draw()
 
 
 def sketch_settings():
@@ -314,7 +390,9 @@ def sketch_setup():
         py5.text_size(14)
     
     create_streets_buffer()
-    
+
+    generate_ants()
+
     py5.frame_rate(60)
 
 
@@ -324,6 +402,7 @@ def sketch_draw():
     
     current_fps = py5.get_frame_rate()
     fps_history.append(current_fps)
+    dt = 1.0 / current_fps if current_fps > 0 else 0.016
     
     pulse_counter += PULSE_SPEED
     
@@ -340,7 +419,7 @@ def sketch_draw():
         py5.image(streets_pg, 0, 0)
     
     py5.push_matrix()
-    py5.translate(circle_center_x - (max_x - min_x) * scale_x / 2, 
+    py5.translate(circle_center_x - (max_x - min_x) * scale_x / 2,
                  circle_center_y - (max_y - min_y) * scale_y / 2)
     
     if origin_coords and dest_coords:
@@ -375,7 +454,10 @@ def sketch_draw():
         
         py5.fill(*DEST_COLOR)
         py5.circle(dest_x, dest_y, dest_point_size)
-    
+
+    update_ants(dt)
+    draw_ants()
+
     py5.pop_matrix()
     
     if show_fps:

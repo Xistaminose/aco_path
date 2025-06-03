@@ -8,6 +8,7 @@ Este projeto demonstra como criar uma visualização de mapas urbanos de alta pe
 
 - Visualizar mapas urbanos com milhares de segmentos de ruas a 60 FPS
 - Destacar pontos de origem e destino com efeitos visuais
+- Exibir agentes "formigas" percorrendo o caminho calculado
 - Implementar técnicas avançadas de otimização para máxima performance
 
 Este repositório implementa o código descrito na **Parte 1** da série, focando nas técnicas de visualização e otimização de desempenho. As próximas partes da série implementarão o algoritmo de colônia de formigas (ACO) para encontrar rotas otimizadas.
